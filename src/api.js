@@ -45,6 +45,7 @@ export async function updateIssue(id, updates) {
   if (updates.status !== undefined) patch.status = updates.status
   if (updates.assigned_to !== undefined) patch.assigned_to = updates.assigned_to
   if (updates.notes !== undefined) patch.notes = updates.notes
+  if (updates.project_id !== undefined) patch.project_id = updates.project_id
   const { data } = await db.from('issues').update(patch).eq('id', id).select().single()
   return data
 }

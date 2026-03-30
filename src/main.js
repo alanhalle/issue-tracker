@@ -221,13 +221,14 @@ function renderDetail(panel, issue) {
           </datalist>
         </div>
       </div>
-      ${issue.project ? `
       <div class="detail-meta-row">
         <span class="detail-meta-label">Project</span>
-        <span style="display:flex;align-items:center;gap:6px;font-size:13px">
-          ${colorDot(issue.project.color)} ${escHtml(issue.project.name)}
-        </span>
-      </div>` : ''}
+        <div class="detail-meta-value">
+          <select id="project-select">
+            ${state.projects.map(p => `<option value="${p.id}" ${issue.project_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div class="detail-meta-row">
         <span class="detail-meta-label">Created</span>
         <span style="font-size:13px">${relDate(issue.created_at)}</span>
@@ -251,7 +252,7 @@ function renderDetail(panel, issue) {
       <div class="add-comment">
         <textarea id="comment-body" placeholder="Leave a comment…"></textarea>
         <div class="add-comment-row">
-          <input id="comment-author" value="${escHtml(state.assignees[0] || 'alan')}" list="assignee-list2" placeholder="Your name" />
+          <input id="comment-author" value="${escHtml(localStorage.getItem('issues_default_author') || 'alan')}" list="assignee-list2" placeholder="Your name" />
           <datalist id="assignee-list2">
             ${state.assignees.map(a => `<option value="${escHtml(a)}">`).join('')}
           </datalist>
@@ -282,10 +283,19 @@ function renderDetail(panel, issue) {
     if (val && !state.assignees.includes(val)) state.assignees.push(val)
   })
 
+  const projectSelect = document.getElementById('project-select')
+  projectSelect.addEventListener('change', async e => {
+    const newProjectId = e.target.value
+    await api.updateIssue(issue.id, { project_id: newProjectId })
+    const newProject = state.projects.find(p => p.id === newProjectId)
+    state.issues = state.issues.map(i => i.id === issue.id ? { ...i, project_id: newProjectId, project: newProject } : i)
+  })
+
   document.getElementById('submit-comment').addEventListener('click', async () => {
     const body = document.getElementById('comment-body').value.trim()
     const author = document.getElementById('comment-author').value.trim() || 'alan'
     if (!body) return
+    localStorage.setItem('issues_default_author', author)
     await api.addComment(issue.id, author, body)
     if (!state.assignees.includes(author)) state.assignees.push(author)
     loadDetail(issue.id)
@@ -295,6 +305,9 @@ function renderDetail(panel, issue) {
 // ── New Issue Modal ───────────────────────────────────────────
 
 function showNewIssueModal() {
+  const scratchProject = state.projects.find(p => p.slug === 'scratch')
+  const defaultProjectId = state.selectedProjectId || (scratchProject ? scratchProject.id : state.projects[0]?.id)
+
   modal.innerHTML = `
     <div class="modal-title">New Issue</div>
     <div class="form-group">
@@ -305,7 +318,7 @@ function showNewIssueModal() {
       <label>Project *</label>
       <select id="ni-project">
         ${state.projects.map(p => `
-          <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${p.name}</option>
+          <option value="${p.id}" ${p.id === defaultProjectId ? 'selected' : ''}>${p.name}</option>
         `).join('')}
       </select>
     </div>
