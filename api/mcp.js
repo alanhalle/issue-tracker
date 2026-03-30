@@ -60,6 +60,7 @@ const TOOLS = [
         status: { type: 'string', enum: ['backlog', 'open', 'in-progress', 'done'] },
         assigned_to: { type: 'string' },
         notes: { type: 'string' },
+        project_slug: { type: 'string', description: 'Move issue to this project slug' },
       },
       required: ['issue_id'],
     },
@@ -145,6 +146,11 @@ async function callTool(name, args) {
       if (args.status !== undefined) updates.status = args.status
       if (args.assigned_to !== undefined) updates.assigned_to = args.assigned_to
       if (args.notes !== undefined) updates.notes = args.notes
+      if (args.project_slug !== undefined) {
+        const { data: proj } = await db.from('projects').select('id').eq('slug', args.project_slug).single()
+        if (!proj) return { error: `Project not found: ${args.project_slug}` }
+        updates.project_id = proj.id
+      }
       updates.updated_at = new Date().toISOString()
       const { data } = await db.from('issues').update(updates).eq('id', args.issue_id).select().single()
       return data

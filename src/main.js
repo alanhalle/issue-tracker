@@ -287,8 +287,7 @@ function renderDetail(panel, issue) {
   projectSelect.addEventListener('change', async e => {
     const newProjectId = e.target.value
     await api.updateIssue(issue.id, { project_id: newProjectId })
-    const newProject = state.projects.find(p => p.id === newProjectId)
-    state.issues = state.issues.map(i => i.id === issue.id ? { ...i, project_id: newProjectId, project: newProject } : i)
+    await reloadIssues()
   })
 
   document.getElementById('submit-comment').addEventListener('click', async () => {
