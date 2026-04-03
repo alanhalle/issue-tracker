@@ -39,6 +39,13 @@ function colorDot(color) {
   return `<span class="project-dot" style="background:${color || '#aaa'}"></span>`
 }
 
+function issueMatchesActiveFilters(issue) {
+  if (!issue) return false
+  if (state.statusFilter !== 'all' && issue.status !== state.statusFilter) return false
+  if (state.assigneeFilter !== 'all' && issue.assigned_to !== state.assigneeFilter) return false
+  return true
+}
+
 // ── Data loading ──────────────────────────────────────────────
 
 async function load() {
@@ -105,11 +112,7 @@ function renderSidebar() {
 }
 
 function renderMain() {
-  const filtered = state.issues.filter(issue => {
-    if (state.statusFilter !== 'all' && issue.status !== state.statusFilter) return false
-    if (state.assigneeFilter !== 'all' && issue.assigned_to !== state.assigneeFilter) return false
-    return true
-  })
+  const filtered = state.issues.filter(issue => issueMatchesActiveFilters(issue))
 
   const toolbar = `
     <div class="toolbar">
@@ -270,17 +273,23 @@ function renderDetail(panel, issue) {
   const statusSelect = document.getElementById('status-select')
   statusSelect.addEventListener('change', async e => {
     await api.updateIssue(issue.id, { status: e.target.value })
-    state.issues = state.issues.map(i => i.id === issue.id ? { ...i, status: e.target.value } : i)
+    const updatedIssue = { ...issue, status: e.target.value }
+    state.issues = state.issues.map(i => i.id === issue.id ? updatedIssue : i)
+    if (!issueMatchesActiveFilters(updatedIssue)) state.selectedIssueId = null
     renderMain()
-    loadDetail(issue.id)
+    if (state.selectedIssueId === issue.id) loadDetail(issue.id)
   })
 
   const assigneeInput = document.getElementById('assignee-input')
   assigneeInput.addEventListener('change', async e => {
     const val = e.target.value.trim()
     await api.updateIssue(issue.id, { assigned_to: val || null })
-    state.issues = state.issues.map(i => i.id === issue.id ? { ...i, assigned_to: val } : i)
+    const updatedIssue = { ...issue, assigned_to: val }
+    state.issues = state.issues.map(i => i.id === issue.id ? updatedIssue : i)
     if (val && !state.assignees.includes(val)) state.assignees.push(val)
+    if (!issueMatchesActiveFilters(updatedIssue)) state.selectedIssueId = null
+    renderMain()
+    if (state.selectedIssueId === issue.id) loadDetail(issue.id)
   })
 
   const projectSelect = document.getElementById('project-select')
